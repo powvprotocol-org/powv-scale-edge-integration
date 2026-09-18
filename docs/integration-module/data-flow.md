@@ -1,6 +1,4 @@
-Substitua o `data-flow.md` inteiro por este conteúdo. Ele está estruturado para leitura pública, sem aqueles blocos visuais de código para fluxos e diagramas.
-
-```markdown
+markdown
 # Data Flow
 
 The PoWV Scale-to-Edge Integration Module establishes a working data path between a physical weighing instrument, a host-side acquisition layer, and an ESP32-based edge receiver.
