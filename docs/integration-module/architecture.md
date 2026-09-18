@@ -2,7 +2,7 @@
 
 ## Public architecture
 
-
+```
 ┌─────────────────────────┐
 │ Physical Weighing Event │
 └────────────┬────────────┘
