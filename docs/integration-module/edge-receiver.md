@@ -1,73 +1,385 @@
+````markdown
 # Edge Receiver
 
-## Purpose
+The Edge Receiver is the embedded endpoint of the PoWV Scale-to-Edge Integration Module.
 
-The edge receiver is the embedded endpoint of the PoWV-S2E laboratory path. This document describes its public behavior without publishing firmware, operational endpoints, network configuration, or implementation code.
+In the current laboratory implementation, an ESP32-based node receives structured measurement events produced by the host acquisition layer, acknowledges successful delivery, retains the latest event in runtime memory, and exposes that event through a local inspection interface.
 
-## Public behavior
+Its role is to provide the first embedded execution point after event construction and network transport.
 
-```text
-Receive event
-  ↓
-Validate message availability at application level
-  ↓
-Return acknowledgment
-  ↓
-Retain latest event temporarily
-  ↓
-Expose event for local inspection
-  ↓
-Render lightweight dashboard view
-```
+---
 
-## Ingestion
-
-The host transfers a structured event to the ESP32 over a controlled local network. The receiver accepts the event at the application boundary and provides an application-level acknowledgment. The public record does not specify the HTTP route, local address, port, headers, authentication material, payload framing, or firmware implementation.
-
-## Acknowledgment
-
-The acknowledgment indicates that the receiver accepted the message at the demonstrated application layer. It does not constitute cryptographic verification, proof of origin, proof of physical truth, durable registration, or confirmation of a complete chain of custody.
-
-## Temporary retention
-
-The receiver retains the latest event for local retrieval during the laboratory session. This is temporary inspection-oriented retention, not a durable evidence store or audit anchor. Persistence, recovery, concurrency, and production lifecycle guarantees are outside the current claim.
-
-## Inspection interface
-
-A local client can retrieve the latest received event from the edge receiver for inspection. The interface supports lightweight visualization of the event state. Real URLs, addresses, endpoint paths, credentials, and deployment details are intentionally excluded.
-
-## Dashboard role
-
-The dashboard is an observation surface for the laboratory PoC. It helps demonstrate that an event reached the embedded node and can be displayed locally. It is not a production control plane, compliance interface, security monitor, or independent evidence registry.
-
-## Cryptographic boundary
-
-The ESP32 currently does not claim independent cryptographic verification of the event hash, hardware-backed signature verification, secure-element key operations, or hardware-rooted authentication of the instrument. The host remains responsible for event construction and hash generation in the validated path.
-
-## Non-operational illustration
-
-The following pseudocode is intentionally abstract and non-executable:
+## Position in the Integration Flow
 
 ```text
-on_event_received(event):
-    retain_latest(event)
-    acknowledge_application_receipt()
+Physical Weighing Event
+        ↓
+Measurement Instrument
+        ↓
+Host Acquisition Layer
+        ↓
+Structured Event
+        ↓
+SHA-256 Integrity Identifier
+        ↓
+Wi-Fi / HTTP Transport
+        ↓
+ESP32 Edge Receiver
+        ↓
+Local API
+        ↓
+Inspection Dashboard
+````
 
-on_local_inspection_request():
-    return latest_event_for_inspection()
+The ESP32 currently operates downstream of the host acquisition process.
+
+The host remains responsible for acquiring the physical measurement, normalizing the device response, constructing the event representation, and generating the SHA-256 integrity identifier.
+
+The edge receiver is responsible for receiving and exposing that event at the embedded layer.
+
+---
+
+## Current Implementation
+
+The laboratory receiver is built around an ESP32-class microcontroller with integrated Wi-Fi connectivity.
+
+The current implementation provides four primary functions:
+
+1. receive a structured event from the host;
+2. return an application-level acknowledgment;
+3. retain the most recently received event;
+4. expose that event to local clients through a lightweight web interface.
+
+The receiver therefore acts as both an embedded ingestion point and a local observability surface for the Scale-to-Edge PoC.
+
+---
+
+## Runtime Flow
+
+A successful event cycle follows this sequence:
+
+```text
+Host Adapter
+     │
+     │ Structured event
+     ▼
+Network Transport
+     │
+     ▼
+ESP32 HTTP Receiver
+     │
+     ├── Accept event
+     │
+     ├── Store latest event
+     │
+     ├── Return acknowledgment
+     │
+     └── Make event available for inspection
+     ▼
+Local Client / Dashboard
 ```
 
-This illustration does not disclose firmware structure, endpoint paths, transport parameters, memory layout, authentication, or device configuration.
+This flow was validated using real measurements generated by a physical weighing instrument.
 
-## Current limitations
+---
 
-- The receiver is dependent on the host-created event.
-- Independent edge-side hash verification is pending.
-- Hardware-backed attestation is pending.
-- Retention is temporary and laboratory-oriented.
-- The local dashboard does not establish durable audit anchoring.
-- The implementation is not presented as production-ready or certified.
+## Event Ingestion
 
-## Disclosure boundary
+The receiver accepts a structured event generated by the host-side integration layer.
 
-Do not publish firmware, C++ source, real endpoint paths, local addresses, ports, Wi-Fi credentials, packet layouts, keys, certificates, secure-element configuration, pin assignments, or other details that could enable reproduction or reverse engineering.
+A representative event has the following form:
+
+```json
+{
+  "event_type": "weight_measurement",
+  "timestamp": "2026-09-18T16:26:02",
+  "device": {
+    "instrument": "commercial_weighing_scale",
+    "edge_node": "edge-node"
+  },
+  "measurement": {
+    "weight_kg": 0.082,
+    "tare_kg": 0.0
+  },
+  "commercial": {
+    "price_per_kg": 200.0,
+    "total": 16.4
+  },
+  "source": "physical_scale",
+  "status": "captured",
+  "integrity": {
+    "algorithm": "SHA-256",
+    "hash": "<event-digest>"
+  }
+}
+```
+
+The event model is independent from the low-level representation produced by the physical instrument.
+
+This separation is important because the edge layer operates on a normalized event rather than on vendor-specific serial data.
+
+---
+
+## Application-Level Acknowledgment
+
+After receiving an event, the ESP32 returns an application-level acknowledgment.
+
+A representative response is:
+
+```json
+{
+  "received": true,
+  "device": "edge-node"
+}
+```
+
+This response confirms that the embedded application accepted the submitted event.
+
+At the current PoC stage, the acknowledgment represents successful delivery and receipt at the application layer.
+
+It is not yet used as a cryptographic attestation of the physical measurement source.
+
+---
+
+## Latest-Event State
+
+The current implementation retains the most recently received event in runtime memory.
+
+Conceptually:
+
+```text
+Incoming Event N
+      ↓
+Replace Current Runtime Event
+      ↓
+Latest Event = Event N
+```
+
+This mechanism provides immediate observability during laboratory testing and allows the current state of the edge receiver to be inspected without querying the original measurement source again.
+
+The current runtime state is intended for integration testing and demonstration rather than long-term evidence storage.
+
+---
+
+## Local Event Retrieval
+
+The edge node exposes the latest received event through a machine-readable local interface.
+
+This allows another client on the same controlled environment to retrieve the event directly from the ESP32.
+
+Conceptually:
+
+```text
+Client
+   │
+   │ Request latest event
+   ▼
+ESP32
+   │
+   │ Structured JSON event
+   ▼
+Client
+```
+
+This interface verifies that the event is no longer limited to the host-side acquisition process and has successfully reached the embedded node.
+
+---
+
+## Local Dashboard
+
+The ESP32 also provides a lightweight human-readable interface for inspecting the latest event.
+
+The dashboard presents selected event information such as:
+
+* measured weight;
+* tare;
+* commercial values when present;
+* event timestamp;
+* instrument metadata;
+* edge-node metadata;
+* configured location context;
+* SHA-256 integrity identifier;
+* structured event payload.
+
+The interface automatically refreshes the event view as new measurements are received.
+
+This makes the embedded node directly observable during laboratory demonstrations without requiring a separate application stack.
+
+---
+
+## Edge Runtime Model
+
+The current receiver behavior can be summarized as:
+
+```text
+receive(event)
+      ↓
+latest_event = event
+      ↓
+acknowledge()
+      ↓
+serve(latest_event)
+```
+
+A simplified implementation model is:
+
+```cpp
+String latestEvent = "{}";
+
+void receiveEvent() {
+    if (!server.hasArg("plain")) {
+        server.send(
+            400,
+            "application/json",
+            "{\"received\":false}"
+        );
+        return;
+    }
+
+    latestEvent = server.arg("plain");
+
+    server.send(
+        200,
+        "application/json",
+        "{\"received\":true}"
+    );
+}
+
+void getLatestEvent() {
+    server.send(
+        200,
+        "application/json",
+        latestEvent
+    );
+}
+```
+
+This example represents the current application behavior without including deployment-specific configuration.
+
+---
+
+## Integrity Position
+
+The event arriving at the receiver already contains a SHA-256 integrity identifier generated by the host-side event construction layer.
+
+The current flow is therefore:
+
+```text
+Structured Event
+      ↓
+Canonical Representation
+      ↓
+SHA-256
+      ↓
+Event + Integrity Identifier
+      ↓
+ESP32 Receiver
+```
+
+At this stage, the ESP32 receives the integrity identifier as part of the event.
+
+Independent edge-side recomputation and comparison of the digest is the next validation step.
+
+The intended progression is:
+
+```text
+Current
+
+Host:
+P → SHA256(P) → H
+
+ESP32:
+Receive P + H
+
+
+Next stage
+
+Host:
+P → SHA256(P) → H
+
+ESP32:
+Receive P + H
+      ↓
+SHA256(P)
+      ↓
+Compare local digest with H
+      ↓
+Verification result
+```
+
+This transition will move the receiver from passive integrity transport to active edge verification.
+
+---
+
+## Relationship to the PoWV Event Model
+
+Within the current Scale-to-Edge implementation, the receiver sits after the following stages:
+
+```text
+E → M → P → H → Edge
+```
+
+Where:
+
+| Symbol | Meaning                                         |
+| ------ | ----------------------------------------------- |
+| `E`    | Physical event                                  |
+| `M`    | Measurement produced by the physical instrument |
+| `P`    | Structured digital representation               |
+| `H`    | SHA-256 integrity identifier                    |
+| `Edge` | Embedded event reception and inspection         |
+
+The ESP32 therefore represents the first embedded consumer of the normalized event in the current laboratory architecture.
+
+---
+
+## Current Capabilities
+
+| Capability                       | Current State             |
+| -------------------------------- | ------------------------- |
+| Wi-Fi connectivity               | Implemented               |
+| Structured event ingestion       | Implemented               |
+| Application-level acknowledgment | Implemented               |
+| Latest-event runtime retention   | Implemented               |
+| Machine-readable event retrieval | Implemented               |
+| Local dashboard                  | Implemented               |
+| SHA-256 value transport          | Implemented               |
+| Edge-side SHA-256 verification   | Next validation stage     |
+| Hardware-backed signing          | Planned                   |
+| Secure-element operations        | Planned                   |
+| Persistent audit storage         | Planned                   |
+| Direct instrument acquisition    | Future architecture stage |
+
+---
+
+## Engineering Significance
+
+The edge receiver establishes a functional transition between host-side event construction and embedded processing.
+
+Before this stage, the measurement exists as a physical instrument output and a host-side digital representation.
+
+After successful transmission, the same structured event exists inside an independent embedded node connected through the local network.
+
+This creates the basis for subsequent capabilities including:
+
+* edge-side integrity verification;
+* hardware-backed device identity;
+* cryptographic attestation;
+* secure-element integration;
+* replay protection;
+* authenticated transport;
+* persistent audit evidence;
+* downstream validation and anchoring.
+
+The current implementation therefore serves as the embedded integration baseline for the next stage of PoWV Scale-to-Edge development.
+
+```
+
+Isso já parece documentação de um **módulo técnico real**.
+
+Repare na diferença: não fica dizendo a cada parágrafo “não publique isso”, “não exponha aquilo”, “isto não é produção”. Ele explica para o terceiro:
+
+**o que existe → como funciona → o que entra → o que sai → qual código representa o comportamento → qual é o estágio técnico → qual é a evolução seguinte.**
+
+O `Disclosure Boundary` fica responsável pelas restrições de publicação. O `edge-receiver.md` fica responsável por **engenharia**.
+```
