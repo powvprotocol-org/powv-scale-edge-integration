@@ -1,480 +1,558 @@
-````markdown
+Substitua o `data-flow.md` inteiro por este conteúdo. Ele está estruturado para leitura pública, sem aqueles blocos visuais de código para fluxos e diagramas.
+
+```markdown
 # Data Flow
 
-The PoWV Scale-to-Edge Integration Module converts a physical weighing event into a structured digital event and transfers that event to an embedded edge node.
+The PoWV Scale-to-Edge Integration Module establishes a working data path between a physical weighing instrument, a host-side acquisition layer, and an ESP32-based edge receiver.
 
-The current laboratory implementation connects a commercial weighing instrument, a host acquisition process, and an ESP32-based receiver over a local network.
+The current laboratory implementation demonstrates the transition of a real physical measurement into a structured digital event, the generation of an integrity identifier, transmission over a local network, and receipt by an embedded node.
 
 ## End-to-End Flow
 
-```text
-Physical Load
-     ↓
-Weighing Instrument
-     ↓
-Serial Measurement Response
-     ↓
-Host Acquisition Adapter
-     ↓
-Field Extraction
-     ↓
-Value Normalization
-     ↓
-Structured Event
-     ↓
-Canonical Serialization
-     ↓
-SHA-256 Digest
-     ↓
-Event + Integrity Metadata
-     ↓
-HTTP over Wi-Fi
-     ↓
-ESP32 Edge Receiver
-     ↓
-Application Acknowledgment
-     ↓
-Latest-Event State
-     ↓
-Local API / Dashboard
-````
+**Physical Load → Weighing Instrument → Serial Interface → Host Acquisition Adapter → Field Extraction → Value Normalization → Structured Event → Canonical Serialization → SHA-256 → HTTP over Wi-Fi → ESP32 Edge Receiver → Application Acknowledgment → Local API → Dashboard**
 
-At the current PoC stage, the host performs acquisition, normalization, event construction, hashing, and transmission.
+This sequence represents the current functional implementation of the Scale-to-Edge PoC.
 
-The ESP32 receives the structured event and provides the first embedded processing point in the integration path.
+The host performs the acquisition and transformation stages. The ESP32 operates as the first embedded receiver of the normalized event.
 
 ---
 
-## 1. Physical Measurement
+## Physical Measurement
 
-The flow begins with a real physical load applied to a commercial weighing instrument.
+The process begins with a real physical load applied to a commercial weighing instrument.
 
-The instrument performs the physical measurement and produces its native device response.
+The instrument performs the measurement and produces the corresponding device response. The weight value therefore originates from the physical measuring equipment rather than from the host application.
 
-```text
-Physical load
-     ↓
-Instrument measurement
-     ↓
-Device response
-```
+At this stage, the relevant relationship is:
 
-The host does not generate the weight value. It receives a measurement originating from the physical instrument.
+**Physical Load → Instrument Measurement → Device Response**
+
+The PoWV integration begins after the physical instrument has produced the measurement.
 
 ---
 
-## 2. Host Acquisition
+## Instrument-to-Host Acquisition
 
-A host-side adapter receives the instrument response through the serial integration layer.
+The weighing instrument is connected to the host environment through a serial communication interface.
 
-The acquisition stage is responsible for collecting the device response and making it available to the event-processing layer.
+The host-side acquisition adapter receives the instrument response and makes it available to the processing layer.
 
-```text
-Instrument
-     ↓
-Serial transport
-     ↓
-Host acquisition buffer
-```
+The current relationship is:
 
-The device-specific communication mechanism remains isolated from the PoWV event representation.
+**Measurement Instrument → Serial Interface → Host Acquisition Adapter**
 
-This separation allows the upstream hardware interface to change without requiring the event model itself to become vendor-specific.
+The serial layer is responsible for transporting the instrument response into the host environment. The host then converts that device-specific representation into application-level information.
+
+This separation is important because the physical device interface and the PoWV event model serve different purposes.
+
+The instrument speaks its native interface. The PoWV integration consumes normalized event data.
 
 ---
 
-## 3. Field Extraction
+## Field Extraction
 
-The acquired response contains the measurement information required by the integration.
+The acquired device response contains the measurement information required by the integration.
 
-For the current weighing PoC, the relevant values include:
+For the current Scale-to-Edge PoC, the relevant values include:
 
-```text
-Weight
-Tare
-Unit price
-Derived total
-```
+| Field | Role |
+|---|---|
+| Weight | Physical measurement produced by the instrument |
+| Tare | Tare associated with the weighing event |
+| Unit price | Optional commercial context |
+| Total | Derived commercial value |
 
-The host adapter extracts these values from the instrument response and converts them into application-level fields.
+The host adapter extracts these values from the device response and converts them into software-level fields.
 
-Conceptually:
+The logical transformation is:
 
-```text
-Device representation
-        ↓
-Field extraction
-        ↓
-weight
-tare
-unit_price
-```
+**Device Response → Field Extraction → Application Values**
+
+At this stage, device-specific formatting is removed from the event-processing path.
 
 ---
 
-## 4. Normalization
+## Value Normalization
 
 Values obtained from the instrument are normalized before event construction.
 
-A measurement such as:
+A representative laboratory measurement may be interpreted as:
 
-```text
-Weight: 0.082 kg
-Tare:   0.000 kg
-Price:  200.00
-```
+| Value | Normalized Representation |
+|---|---:|
+| Weight | `0.082 kg` |
+| Tare | `0.000 kg` |
+| Price per kilogram | `200.00` |
+| Derived total | `16.40` |
 
-is represented internally as numeric application data:
-
-```python
-weight_kg = 0.082
-tare_kg = 0.0
-price_per_kg = 200.0
-```
-
-Derived values are calculated at the application layer.
+Inside the application layer, these values are represented numerically rather than as formatted device strings.
 
 For example:
 
-```python
-total = round(weight_kg * price_per_kg, 2)
-```
+`weight_kg = 0.082`
 
-For the representative laboratory event:
+`tare_kg = 0.0`
 
-```text
-0.082 × 200.00 = 16.40
-```
+`price_per_kg = 200.0`
 
-This produces a normalized measurement independent from the original device formatting.
+The commercial total is derived from the normalized values:
 
----
+`total = weight_kg × price_per_kg`
 
-## 5. Event Construction
+For the representative event:
 
-The normalized values are converted into a structured event.
+`0.082 × 200.00 = 16.40`
 
-A representative event from the Scale-to-Edge PoC is:
-
-```json
-{
-  "event_type": "weight_measurement",
-  "timestamp": "2026-09-18T16:26:02",
-  "device": {
-    "instrument": "commercial_weighing_scale",
-    "edge_node": "edge-node"
-  },
-  "measurement": {
-    "weight_kg": 0.082,
-    "tare_kg": 0.0
-  },
-  "commercial": {
-    "price_per_kg": 200.0,
-    "total": 16.4
-  },
-  "source": "physical_scale",
-  "status": "captured"
-}
-```
-
-The purpose of this stage is to transform a device-specific response into a structured representation that can be processed independently from the original instrument protocol.
+The result is a device-independent representation that can be used by the event layer.
 
 ---
 
-## 6. Canonical Serialization
+## Structured Event Construction
 
-Before the integrity identifier is generated, the event is serialized deterministically.
+After normalization, the host creates a structured representation of the physical event.
 
-The current host implementation uses a canonical JSON representation based on:
+The current event model includes measurement data, contextual metadata, source information, processing status, and integrity metadata.
 
-* deterministic key ordering;
-* compact separators;
-* UTF-8 encoding.
+A representative structure is:
 
-Conceptually:
+| Field | Example | Function |
+|---|---|---|
+| `event_type` | `weight_measurement` | Identifies the event class |
+| `timestamp` | `2026-09-18T16:26:02` | Records event construction time |
+| `device.instrument` | `commercial_weighing_scale` | Identifies the instrument class |
+| `device.edge_node` | `edge-node` | Identifies the logical edge destination |
+| `measurement.weight_kg` | `0.082` | Normalized physical measurement |
+| `measurement.tare_kg` | `0.0` | Tare associated with the event |
+| `commercial.price_per_kg` | `200.0` | Optional commercial value |
+| `commercial.total` | `16.4` | Derived commercial result |
+| `source` | `physical_scale` | Identifies the source class |
+| `status` | `captured` | Indicates event state |
+| `integrity.algorithm` | `SHA-256` | Digest algorithm |
+| `integrity.hash` | `<event-digest>` | Integrity identifier |
 
-```python
-canonical_event = json.dumps(
-    event,
-    sort_keys=True,
-    separators=(",", ":"),
-    ensure_ascii=False
-)
-```
+The structured event becomes the primary data object transported through the remainder of the current PoC.
 
-This ensures that the same logical event produces the same byte representation before hashing.
-
----
-
-## 7. Integrity Identifier
-
-The canonical event representation is processed with SHA-256.
-
-```text
-P = canonical structured event
-
-H = SHA256(P)
-```
-
-A simplified implementation is:
-
-```python
-digest = hashlib.sha256(
-    canonical_event.encode("utf-8")
-).hexdigest()
-```
-
-The digest is then attached to the event:
-
-```json
-{
-  "integrity": {
-    "algorithm": "SHA-256",
-    "hash": "<event-digest>"
-  }
-}
-```
-
-The resulting relationship is:
-
-```text
-Structured Event
-      ↓
-Canonical JSON
-      ↓
-SHA-256
-      ↓
-Integrity Identifier
-```
-
-The integrity field is appended after the digest of the original event representation is generated.
+This step separates the logical event from the original device-specific representation.
 
 ---
 
-## 8. Transport to the Edge
+## Event Representation
 
-Once the structured event contains its integrity metadata, it is transmitted from the host to the ESP32 edge receiver.
+Within the Scale-to-Edge module, the physical measurement is progressively transformed through a series of representations.
 
-The current implementation uses HTTP over Wi-Fi inside the laboratory network.
+The current path can be expressed as:
 
-```text
-Host Adapter
-     │
-     │ JSON event
-     │ HTTP
-     ▼
-Wi-Fi Network
-     │
-     ▼
-ESP32 Edge Receiver
-```
+**Physical Event → Device Measurement → Normalized Values → Structured Event**
 
-At this point, the data has crossed from the host-side software environment into an independent embedded node.
+Using the PoWV conceptual notation:
 
----
-
-## 9. Edge Receipt
-
-The ESP32 accepts the incoming structured event at the application layer.
-
-The current receiver performs three immediate actions:
-
-```text
-Receive event
-     ↓
-Retain latest event
-     ↓
-Return acknowledgment
-```
-
-A representative acknowledgment is:
-
-```json
-{
-  "received": true,
-  "device": "edge-node"
-}
-```
-
-This response confirms that the event reached the embedded application.
-
----
-
-## 10. Latest-Event State
-
-The edge receiver maintains the latest successfully received event in runtime state.
-
-Conceptually:
-
-```text
-Event N-1
-    ↓
-Current State
-
-New Event N arrives
-    ↓
-Current State = Event N
-```
-
-This provides a simple state model for integration testing and local observability.
-
-The current PoC retains the latest event rather than implementing a persistent event ledger at the edge.
-
----
-
-## 11. Local Retrieval
-
-A client connected to the laboratory network can request the latest event directly from the ESP32.
-
-```text
-Local Client
-     │
-     │ Request
-     ▼
-ESP32
-     │
-     │ Latest structured event
-     ▼
-Local Client
-```
-
-This provides a direct way to confirm that the event received from the physical measurement pipeline is present at the embedded node.
-
----
-
-## 12. Dashboard Rendering
-
-The same event can be rendered through a lightweight interface hosted by the ESP32.
-
-The current dashboard exposes selected fields such as:
-
-* measured weight;
-* tare;
-* price per unit;
-* calculated total;
-* event timestamp;
-* device metadata;
-* integrity algorithm;
-* integrity digest;
-* structured event payload.
-
-The dashboard automatically retrieves the latest event from the edge receiver and updates the displayed state.
-
-The dashboard is therefore an observability layer over the edge event state rather than a separate data-processing component.
-
----
-
-## Event Lifecycle
-
-The complete current lifecycle can be summarized as:
-
-```text
-1. Physical event occurs
-2. Instrument produces measurement
-3. Host acquires instrument response
-4. Relevant fields are extracted
-5. Values are normalized
-6. Structured event is constructed
-7. Event is serialized deterministically
-8. SHA-256 digest is generated
-9. Integrity metadata is attached
-10. Event is transmitted over Wi-Fi
-11. ESP32 receives event
-12. ESP32 acknowledges receipt
-13. Latest event is retained
-14. Event becomes available through the local API
-15. Dashboard renders the edge state
-```
-
----
-
-## Processing Responsibility
-
-| Stage                      | Current Component           |
-| -------------------------- | --------------------------- |
-| Physical measurement       | Weighing instrument         |
-| Device communication       | Instrument / host interface |
-| Response acquisition       | Host adapter                |
-| Field extraction           | Host adapter                |
-| Value normalization        | Host adapter                |
-| Event construction         | Host adapter                |
-| Canonical serialization    | Host adapter                |
-| SHA-256 generation         | Host adapter                |
-| Network transmission       | Host adapter                |
-| Event receipt              | ESP32                       |
-| Application acknowledgment | ESP32                       |
-| Latest-event state         | ESP32                       |
-| Event retrieval            | ESP32                       |
-| Dashboard rendering        | ESP32 / local browser       |
-
-This table represents the current laboratory implementation rather than the final target architecture.
-
----
-
-## PoWV Representation
-
-Within the PoWV conceptual model, the current Scale-to-Edge path can be represented as:
-
-```text
-E → M → P → H → Edge
-```
+**E → M → P**
 
 Where:
 
-| Symbol | Stage                                   |
-| ------ | --------------------------------------- |
-| `E`    | Physical weighing event                 |
-| `M`    | Measurement produced by the instrument  |
-| `P`    | Structured digital event                |
-| `H`    | SHA-256 integrity identifier            |
-| `Edge` | Transport and receipt by the ESP32 node |
+| Symbol | Meaning |
+|---|---|
+| `E` | Physical event |
+| `M` | Measurement produced by the instrument |
+| `P` | Structured digital representation |
 
-The next architectural stages extend this flow toward:
-
-```text
-E → M → P → σ → V → H → A → I
-```
-
-with cryptographic attestation, independent verification, audit anchoring, and downstream interpretation introduced as separate capabilities.
+The structured event is the point at which the measurement becomes independent from the original instrument formatting.
 
 ---
 
-## Current Implementation Boundary
+## Canonical Serialization
 
-The current implementation has successfully demonstrated:
+Before the integrity identifier is calculated, the structured event is converted into a deterministic representation.
 
-```text
-Real Physical Measurement
-          ↓
-Structured Digital Event
-          ↓
-SHA-256 Integrity Identifier
-          ↓
-Network Transport
-          ↓
-Embedded Event Receipt
-          ↓
-Local Inspection
+The current implementation uses canonical JSON serialization.
+
+The canonicalization process establishes consistent:
+
+- key ordering;
+- field representation;
+- separators;
+- UTF-8 encoding.
+
+This is necessary because hashing operates on bytes rather than on the abstract meaning of a JSON object.
+
+Two logically equivalent JSON objects may otherwise produce different hashes if their serialized byte representations differ.
+
+The current relationship is:
+
+**Structured Event → Canonical Representation**
+
+Conceptually:
+
+`P = CanonicalJSON(event)`
+
+The canonical representation becomes the direct input to the integrity function.
+
+---
+
+## SHA-256 Integrity Identifier
+
+The canonical event representation is processed using SHA-256.
+
+The relationship is:
+
+`H = SHA256(P)`
+
+Where:
+
+- `P` is the canonical event representation;
+- `H` is the resulting SHA-256 digest.
+
+The digest is then associated with the structured event through the integrity metadata.
+
+The current processing sequence is:
+
+**Structured Event → Canonical Serialization → SHA-256 → Integrity Identifier**
+
+The integrity identifier provides a deterministic reference to the digital event representation used during the hashing step.
+
+If that representation changes, the resulting digest changes as well.
+
+---
+
+## Integrity Metadata
+
+After the digest is generated, integrity information is appended to the event.
+
+The integrity section contains:
+
+| Field | Function |
+|---|---|
+| `algorithm` | Identifies the digest algorithm |
+| `hash` | Stores the resulting event digest |
+
+The current implementation therefore produces an event containing both the normalized measurement and its associated integrity identifier.
+
+The resulting logical structure is:
+
+**P + H**
+
+where `P` represents the structured event and `H` represents the SHA-256 integrity identifier.
+
+---
+
+## Host Processing Pipeline
+
+The host is currently responsible for the majority of the event-construction pipeline.
+
+Its responsibilities include:
+
+1. acquiring the instrument response;
+2. extracting relevant measurement fields;
+3. normalizing numerical values;
+4. calculating derived values;
+5. constructing the structured event;
+6. assigning the event timestamp;
+7. serializing the event deterministically;
+8. generating the SHA-256 digest;
+9. attaching integrity metadata;
+10. transmitting the resulting event to the edge node.
+
+The current host pipeline can therefore be summarized as:
+
+**Acquire → Extract → Normalize → Structure → Canonicalize → Hash → Transmit**
+
+The host remains an intermediary in the current laboratory architecture.
+
+---
+
+## Transport to the Edge
+
+After event construction and integrity processing, the complete event is transmitted from the host environment to the ESP32 edge receiver.
+
+The current laboratory transport uses HTTP over Wi-Fi.
+
+The logical network path is:
+
+**Host Adapter → HTTP → Wi-Fi Network → ESP32 Edge Receiver**
+
+The transported object is the structured event rather than the original serial response produced by the weighing instrument.
+
+This establishes an architectural separation between:
+
+**Instrument-side communication**
+
+and
+
+**Edge-side event transport**
+
+The edge receiver therefore does not need to process the native representation generated by the physical scale in the current implementation.
+
+---
+
+## Edge Receipt
+
+The ESP32 receives the structured event at the application layer.
+
+When a valid event submission reaches the receiver, the current implementation performs three primary operations:
+
+1. accepts the incoming event;
+2. retains it as the latest runtime event;
+3. returns an application-level acknowledgment.
+
+The edge processing sequence is:
+
+**Receive Event → Store Latest Event → Return Acknowledgment**
+
+This establishes that the structured event has crossed from the host software environment into an embedded node.
+
+---
+
+## Application-Level Acknowledgment
+
+After successful receipt, the ESP32 returns a response confirming that the embedded application accepted the event.
+
+A representative response contains:
+
+| Field | Example |
+|---|---|
+| `received` | `true` |
+| `device` | `edge-node` |
+
+The acknowledgment confirms successful application-level delivery.
+
+It represents the completion of the current host-to-edge transport cycle.
+
+---
+
+## Latest-Event Runtime State
+
+The ESP32 maintains the most recently received event in runtime memory.
+
+The state model is intentionally simple:
+
+**Previous Event → New Event Received → Latest Event Replaced**
+
+If Event N arrives after Event N-1, Event N becomes the current event exposed by the receiver.
+
+This provides immediate observability during integration testing and allows the current embedded state to be inspected independently from the host acquisition interface.
+
+The current implementation is focused on latest-event state rather than persistent event history.
+
+---
+
+## Local Event Retrieval
+
+The latest received event can be retrieved directly from the ESP32 through its local interface.
+
+The interaction is:
+
+**Local Client → ESP32 → Latest Structured Event**
+
+This provides a second observation point for the event.
+
+The event is first observable on the host after acquisition and later observable independently at the embedded receiver after network transmission.
+
+The ability to retrieve the same structured event from the ESP32 confirms that the event has traversed the host-to-edge path.
+
+---
+
+## Dashboard Rendering
+
+The ESP32 also provides a lightweight local dashboard for human-readable inspection.
+
+The dashboard presents selected fields from the latest structured event, including:
+
+- weight;
+- tare;
+- price per unit when available;
+- calculated total;
+- event timestamp;
+- device metadata;
+- location context;
+- integrity algorithm;
+- integrity digest;
+- structured event information.
+
+The dashboard periodically retrieves the latest event from the embedded receiver and updates the displayed state.
+
+The visualization layer does not generate a separate measurement. It renders the event already held by the edge node.
+
+The relationship is therefore:
+
+**ESP32 Event State → Local API → Browser Dashboard**
+
+---
+
+## Complete Event Lifecycle
+
+The current Scale-to-Edge event lifecycle consists of the following stages:
+
+1. A physical weighing event occurs.
+2. The weighing instrument generates the measurement.
+3. The instrument response reaches the host through the serial interface.
+4. The host acquisition adapter collects the response.
+5. Relevant measurement fields are extracted.
+6. Values are converted into normalized application data.
+7. Derived values are calculated.
+8. A structured event is created.
+9. A timestamp is associated with the event.
+10. The event is serialized into a deterministic representation.
+11. SHA-256 is calculated over the canonical event representation.
+12. The resulting digest is attached as integrity metadata.
+13. The event is transmitted from the host over HTTP and Wi-Fi.
+14. The ESP32 receives the event.
+15. The edge node stores the latest event in runtime state.
+16. The ESP32 returns an application-level acknowledgment.
+17. The latest event becomes available through the local interface.
+18. The dashboard retrieves and displays the current edge event.
+
+This represents the complete data flow validated in the current laboratory implementation.
+
+---
+
+## Component Responsibility Matrix
+
+| Stage | Responsible Component |
+|---|---|
+| Physical load | External physical process |
+| Weight measurement | Weighing instrument |
+| Native device response | Weighing instrument |
+| Serial transport | Instrument / host interface |
+| Response acquisition | Host adapter |
+| Field extraction | Host adapter |
+| Value normalization | Host adapter |
+| Derived value calculation | Host adapter |
+| Event construction | Host adapter |
+| Timestamp assignment | Host adapter |
+| Canonical serialization | Host adapter |
+| SHA-256 generation | Host adapter |
+| Integrity metadata assembly | Host adapter |
+| Network transmission | Host adapter |
+| Event receipt | ESP32 |
+| Application acknowledgment | ESP32 |
+| Latest-event retention | ESP32 |
+| Event retrieval | ESP32 |
+| Dashboard data delivery | ESP32 |
+| Human-readable rendering | Local browser |
+
+This responsibility model describes the current PoC implementation rather than the final intended architecture.
+
+---
+
+## Data Transformation Model
+
+The transformation performed by the current module can be summarized in four major stages.
+
+### Physical Domain
+
+A real-world load is converted into a measurement by the weighing instrument.
+
+**Physical Load → Measurement**
+
+### Acquisition Domain
+
+The instrument representation is acquired and converted into normalized application values.
+
+**Measurement → Host Acquisition → Normalized Values**
+
+### Event Domain
+
+Normalized values are transformed into a structured event and associated with an integrity identifier.
+
+**Normalized Values → Structured Event → SHA-256**
+
+### Edge Domain
+
+The resulting event is transported to an embedded receiver and made available for local inspection.
+
+**Event + Integrity Identifier → Network Transport → ESP32 → Inspection**
+
+Together, these stages establish the current physical-to-edge path.
+
+---
+
+## PoWV Conceptual Mapping
+
+The implementation corresponds to the following partial PoWV path:
+
+**E → M → P → H → Edge**
+
+| Symbol | Current Implementation |
+|---|---|
+| `E` | Physical weighing event |
+| `M` | Measurement generated by the weighing instrument |
+| `P` | Structured event constructed by the host |
+| `H` | SHA-256 digest generated from the canonical representation |
+| `Edge` | ESP32 receipt, retention, acknowledgment, and inspection |
+
+This laboratory stage establishes a working path from physical measurement to embedded event receipt.
+
+The broader PoWV model extends beyond the current Scale-to-Edge implementation:
+
+**E → M → P → σ → V → H → A → I**
+
+Where:
+
+| Symbol | Function |
+|---|---|
+| `σ` | Cryptographic attestation |
+| `V` | Verification |
+| `H` | Integrity identifier |
+| `A` | Audit anchoring or evidence registration |
+| `I` | Interpretation or downstream decision |
+
+The current Scale-to-Edge PoC primarily validates the path through measurement acquisition, event representation, integrity identification, transport, and edge receipt.
+
+---
+
+## Current Integrity Position
+
+The SHA-256 digest is currently calculated by the host before the event reaches the ESP32.
+
+The current relationship is:
+
+**Host: P → SHA256(P) → H**
+
+followed by:
+
+**ESP32: Receive P + H**
+
+The edge node therefore receives both the event representation and its integrity metadata.
+
+At the current stage, the ESP32 is an event receiver rather than an independent integrity-verification authority.
+
+---
+
+## Next Edge Verification Stage
+
+The next technical step is independent digest verification at the edge.
+
+The intended processing model is:
+
+**Receive P + H → Recalculate SHA256(P) → Compare Local Digest with Received H → Produce Verification Result**
+
+This changes the role of the ESP32 from passive receipt of integrity metadata to active verification of the digital event representation.
+
+The resulting relationship becomes:
+
+`H_received = H_local`
+
+when the event received by the ESP32 produces the same digest as the identifier generated upstream.
+
+This is the next validation milestone for the Scale-to-Edge module.
+
+---
+
+## Engineering Significance
+
+The current implementation demonstrates that a real physical measurement can move through multiple technical domains without remaining tied to the original device representation.
+
+The measurement begins as an instrument-specific physical observation and becomes:
+
+**Physical Measurement → Normalized Data → Structured Event → Integrity-Identified Event → Network Message → Embedded Runtime State**
+
+This transition is significant because it creates a stable event boundary between physical instrumentation and downstream edge processing.
+
+The weighing instrument is responsible for producing the measurement.
+
+The host is responsible for adapting that measurement into the current PoWV event representation.
+
+The ESP32 is responsible for receiving the resulting event and exposing it at the embedded layer.
+
+The Scale-to-Edge module therefore provides the integration foundation for subsequent work on edge verification, device identity, cryptographic attestation, secure hardware, persistent evidence handling, and downstream audit infrastructure.
 ```
-
-The next technical milestone is to move the ESP32 from event receipt to active verification by independently recalculating the integrity digest of the received event and comparing it with the transmitted identifier.
-
-That transition changes the edge role from:
-
-```text
-Receive(P + H)
-```
-
-to:
-
-```text
-Receive(P + H)
-      ↓
-Calculate SHA256(P)
-      ↓
-Compare calculated H with received H
-      ↓
-Produce verification result
-```
-This establishes the next validation layer in the Scale-to-Edge integration path.
-
