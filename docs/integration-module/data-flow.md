@@ -1,4 +1,4 @@
-markdown
+
 # Data Flow
 
 The PoWV Scale-to-Edge Integration Module establishes a working data path between a physical weighing instrument, a host-side acquisition layer, and an ESP32-based edge receiver.
