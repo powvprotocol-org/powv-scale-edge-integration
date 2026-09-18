@@ -374,12 +374,3 @@ This creates the basis for subsequent capabilities including:
 The current implementation therefore serves as the embedded integration baseline for the next stage of PoWV Scale-to-Edge development.
 
 ```
-
-Isso já parece documentação de um **módulo técnico real**.
-
-Repare na diferença: não fica dizendo a cada parágrafo “não publique isso”, “não exponha aquilo”, “isto não é produção”. Ele explica para o terceiro:
-
-**o que existe → como funciona → o que entra → o que sai → qual código representa o comportamento → qual é o estágio técnico → qual é a evolução seguinte.**
-
-O `Disclosure Boundary` fica responsável pelas restrições de publicação. O `edge-receiver.md` fica responsável por **engenharia**.
-```
