@@ -1,94 +1,73 @@
 # PoWV Scale-to-Edge Integration PoC
 
-A public-safe technical record of a laboratory proof of concept validating the path from a real physical weighing event to a networked embedded edge receiver.
+A public technical record of a laboratory proof of concept conducted on 2026-09-18. The PoC evaluated the public-safe path from a physical weighing event to a networked embedded edge receiver.
 
-> This repository intentionally documents observable capabilities and validation status only.
-> It does not disclose proprietary firmware, serial protocol details, credentials, keys, protected parsing logic, raw device framing, operational addresses, or implementation material that could facilitate reverse engineering.
+> This repository documents observable capabilities and validation status only. It does not disclose proprietary implementation details, operational parameters, credentials, keys, raw device data, or material that could facilitate reverse engineering.
 
 ## Demonstrated path
 
+```text
 Physical weighing event
-→ host-side acquisition
-→ structured event representation
+→ Instrument acquisition
+→ Structured event representation
 → SHA-256 integrity identifier
-→ local network transport
+→ Controlled local network transport
 → ESP32 edge receiver
-→ local inspection interface
+→ Local inspection interface
+```
 
-## Current validation status
+A host remains between the physical instrument and the ESP32. The current PoC therefore does not represent direct instrument-to-edge acquisition.
 
-Validated:
-
-- acquisition of a real physical weight measurement;
-- structured event generation;
-- integrity hashing;
-- Wi-Fi transport to an ESP32;
-- successful application-layer acknowledgment;
-- local retrieval of the most recent event;
-- lightweight embedded visualization.
-
-Not yet claimed as validated:
-
-- hardware-backed signing;
-- independent edge verification;
-- secure-element key operations;
-- direct scale-to-edge acquisition;
-- durable audit anchoring;
-- production-grade chain of custody.
-
-## Objective
-
-This repository documents the public-facing technical boundary of a validation exercise focused on proving that a physical measuring event can be captured, represented in a structured form, integrity-identified, transmitted over a local network, and received by an edge device for local inspection.
-
-The emphasis is on traceability, reproducibility, and disclosure discipline. The public record is designed to communicate what was demonstrated without exposing protected or proprietary implementation details.
-
-## Scope
-
-This project covers:
-
-- evidence of real measurement acquisition;
-- event structuring for transmission and inspection;
-- integrity hashing for non-repudiable local reference;
-- local network delivery to an embedded receiver;
-- minimal edge-side receipt and presentation.
-
-This project does not claim to provide:
-
-- a production security boundary;
-- a finalized commercial implementation;
-- device-level attestation or cryptographic signing;
-- field deployment integrity guarantees;
-- chain-of-custody proof beyond the demonstrated local PoC.
-
-## Repository structure
+## PoWV conceptual mapping
 
 ```text
-powv-scale-edge-integration/
-├── README.md
-├── docs/
-│   ├── architecture-overview.md
-│   ├── validation-status.md
-│   └── disclosure-boundary.md
-├── LICENSE
-└── NOTICE
-Disclosure Limit
-The documentation included here is intentionally limited to:
+E → M → P → H → edge transport
+```
 
-capabilities that were directly observed during the validation process;
+- **E** — physical event
+- **M** — measurement
+- **P** — structured digital representation
+- **H** — SHA-256 integrity identifier
 
-the functional flow from measurement to receiver;
+SHA-256 is used as an integrity identifier in this record. It is not a digital signature and does not, by itself, establish provenance, authenticity, hardware attestation, or complete chain of custody.
 
-the status of validation and non-validation claims;
+## Validation status
 
-high-level architectural structure without exposing non-public implementation details.
+Validated at laboratory PoC level:
 
-No protected workflows, device protocols, embedded logic, credential material, key material, operational layout, raw framing details, or implementation content enabling reverse engineering are included in this repository.
+- acquisition of a real physical weight measurement;
+- structured event construction;
+- generation of an integrity identifier;
+- controlled local network transport;
+- receipt by an ESP32 edge receiver;
+- application-level receipt acknowledgment;
+- retrieval of the most recent received event;
+- lightweight local dashboard visualization.
 
-Secure Structure for the Public
-The repository is intended to serve as a technical record for external review, while preserving the confidentiality of sensitive implementation details. It provides a defensible public summary of the PoC without revealing proprietary internal details.
+Not claimed as complete:
 
-License
-This repository is published under the project license defined in the LICENSE file.
+- hardware-backed cryptographic attestation;
+- independent cryptographic verification on the edge device;
+- secure-element key operations;
+- direct instrument-to-edge acquisition;
+- durable audit anchoring;
+- production-grade chain of custody;
+- interpretation or business decision automation.
 
-Notice
-This project documents a validation-oriented technical PoC for the PoWV ecosystem. It is intended solely for public technical review and research context. It does not represent a production deployment, a security guarantee, or a complete operational specification.
+## Maturity classification
+
+**Functional laboratory PoC for physical measurement acquisition, structured event construction, integrity hashing, controlled local network transport, and embedded receipt.**
+
+This classification is deliberately narrower than a production security or compliance claim.
+
+## Documentation
+
+- [Architecture overview](docs/architecture-overview.md)
+- [Validation status](docs/validation-status.md)
+- [Experimental record](docs/experimental-record.md)
+- [Disclosure boundary](docs/disclosure-boundary.md)
+- [Notice](NOTICE.md)
+
+## Public documentation boundary
+
+This repository intentionally excludes proprietary source code and operational reproduction details, including device protocol material, serial parameters, network secrets, credentials, cryptographic keys, raw instrument output, firmware, private endpoints, and internal topology. See [disclosure-boundary.md](docs/disclosure-boundary.md) for the publication rules.
