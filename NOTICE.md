@@ -1,16 +1,20 @@
 # Notice
 
-This repository is a public technical record of a laboratory proof of concept for the PoWV Scale-to-Edge Integration Module.
+This repository provides a public technical record of a laboratory proof of concept for the PoWV Scale-to-Edge Integration Module.
 
-It is not:
+The materials published here are limited to the documented scope of the laboratory validation and should not be interpreted as:
 
 - a production specification;
-- a security certification or formal security assurance;
-- a statement of production readiness;
+- a security certification or formal assurance statement;
+- evidence of production readiness;
 - a complete chain-of-custody implementation;
 - a guarantee of provenance, authenticity, or physical truth;
-- an authorization to reverse engineer any instrument, protocol, firmware, system, or proprietary integration.
+- authorization to reverse engineer any instrument, protocol, firmware, system, or proprietary integration.
 
-The documentation intentionally omits proprietary source code, operational parameters, raw device data, credentials, keys, private endpoints, protected hardware configuration, and other sensitive material. Nothing in this repository grants permission to access, reconstruct, test, or reproduce protected systems or implementations.
+Implementation details considered proprietary, security-sensitive, or operationally confidential are intentionally excluded. This includes, among other items, source code, device protocol details, operational parameters, raw device data, credentials, cryptographic material, private endpoints, protected hardware configuration, and internal integration procedures.
 
-The laboratory results are limited to the capabilities and conditions explicitly described in the documentation. Pending items remain pending, including hardware-backed attestation, independent edge verification, secure-element operations, direct instrument-to-edge acquisition, durable audit anchoring, and production-grade chain of custody.
+Nothing in this repository grants permission to access, reconstruct, reproduce, probe, test, or derive protected systems or implementations.
+
+The laboratory results described in this repository apply only to the conditions and capabilities expressly documented. Capabilities not yet validated remain outside the scope of the current implementation, including hardware-backed attestation, independent edge verification, secure-element operations, direct instrument-to-edge acquisition, durable audit anchoring, and production-grade chain of custody.
+
+PoWV Protocol reserves all rights in non-public implementation details, proprietary architecture, technical know-how, and associated intellectual property.
