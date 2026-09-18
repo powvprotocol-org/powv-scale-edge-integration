@@ -478,4 +478,3 @@ Produce verification result
 ```
 This establishes the next validation layer in the Scale-to-Edge integration path.
 
-```
