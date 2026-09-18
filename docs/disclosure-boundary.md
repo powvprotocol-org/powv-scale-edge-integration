@@ -1,156 +1,61 @@
-````markdown
 # Disclosure Boundary
 
-This repository is intended to document the engineering work behind the PoWV Scale-to-Edge Integration Module while preserving the confidentiality of implementation details that are not required for public technical review.
+This repository documents the engineering and validation work associated with the PoWV Scale-to-Edge Integration Module.
 
-The objective is not to remove technical substance. Public documentation may include architecture, data flow, event models, validation results, sanitized code examples, interface behavior, component responsibilities, trust boundaries, and laboratory observations. The boundary applies only where disclosure would expose credentials, protected device behavior, proprietary integration logic, or operational details that materially reduce the effort required to reproduce the private implementation.
+Its purpose is to provide sufficient technical depth for architecture review, implementation understanding, validation tracking, and engineering discussion without exposing confidential implementation material, operational credentials, cryptographic secrets, or proprietary device-integration mechanics.
+
+The public documentation is expected to remain technically substantive. Architecture, data flow, event models, interface behavior, validation results, trust boundaries, sanitized source-code examples, laboratory observations, and implementation status may be published where they do not disclose protected information.
+
+---
 
 ## Public Technical Scope
 
-The following material may be published:
+The following material may be published in this repository:
 
-- system and module architecture;
-- hardware topology at component level;
-- host-to-edge processing flow;
-- structured event schemas;
-- event lifecycle and transformation stages;
-- canonicalization and hashing concepts;
-- SHA-256 usage within the current PoC;
-- ESP32 receiver behavior;
-- application-level acknowledgments;
-- local inspection and dashboard behavior;
-- generic HTTP request/response examples;
-- sanitized Python and embedded-code examples;
-- validation matrices and test status;
-- laboratory procedures described at a functional level;
-- trust boundaries and current architectural limitations;
-- measured capabilities that do not disclose protected integration mechanics.
+- module architecture;
+- hardware topology at functional-block level;
+- physical-to-digital data flow;
+- host-side acquisition responsibilities;
+- event-construction logic at an abstract or sanitized level;
+- structured event models;
+- canonicalization concepts;
+- SHA-256 integrity processing;
+- network transport behavior;
+- ESP32 edge-receiver responsibilities;
+- application-level acknowledgment behavior;
+- local event-retrieval behavior;
+- local dashboard behavior;
+- generic request and response examples;
+- sanitized Python examples;
+- sanitized embedded C/C++ examples;
+- laboratory validation results;
+- capability matrices;
+- validation status;
+- experimental milestones;
+- trust boundaries;
+- current architectural limitations;
+- public-safe diagrams;
+- representative event data where disclosure does not reveal protected integration details.
 
-Illustrative source code is acceptable where device-specific secrets, operational configuration, and proprietary integration logic have been removed.
+Public documentation may describe the current functional path as:
 
-## Restricted Implementation Material
-
-The following information must remain outside the public repository:
-
-### Device protocol details
-
-- vendor-specific serial commands;
-- request bytes and control sequences;
-- raw device frames;
-- framing rules;
-- undocumented protocol behavior;
-- device-specific response formats where publication would enable direct reproduction;
-- proprietary parsing expressions derived from non-public protocol behavior.
-
-### Operational configuration
-
-- Wi-Fi credentials;
-- private network addresses;
-- active hostnames;
-- production or laboratory credentials;
-- local machine-specific device identifiers;
-- environment-specific endpoints;
-- deployment-specific port assignments.
-
-### Security material
-
-- private keys;
-- certificates containing non-public material;
-- seeds;
-- authentication tokens;
-- provisioning credentials;
-- secure-element configuration;
-- key-generation or key-injection procedures;
-- hardware-root-of-trust implementation details not approved for publication.
-
-### Protected engineering details
-
-- complete acquisition adapters containing proprietary device logic;
-- private firmware implementations;
-- unreleased packet layouts;
-- confidential transport optimizations;
-- internal anti-tamper mechanisms;
-- non-public threat-model material;
-- internal infrastructure topology;
-- customer, partner, facility, or deployment-specific integration data.
-
-## Sanitized Code
-
-Public examples should preserve the engineering model while removing environment-specific and protected information.
-
-For example, this is within scope:
-
-```python
-canonical = json.dumps(
-    event,
-    sort_keys=True,
-    separators=(",", ":"),
-    ensure_ascii=False
-)
-
-digest = hashlib.sha256(
-    canonical.encode("utf-8")
-).hexdigest()
-````
-
-A generic edge receiver is also within scope:
-
-```cpp
-void receiveEvent() {
-    if (!server.hasArg("plain")) {
-        server.send(400, "application/json",
-                    "{\"received\":false}");
-        return;
-    }
-
-    latestEvent = server.arg("plain");
-
-    server.send(200, "application/json",
-                "{\"received\":true}");
-}
-```
-
-By contrast, code that includes the exact command sequence required to communicate with a specific weighing instrument, production credentials, or protected device parsing logic should remain private.
-
-## Experimental Data
-
-Laboratory results may be published when they are useful for understanding the behavior of the module.
-
-Public records may include:
-
-* representative measurement values;
-* structured event examples;
-* example timestamps;
-* derived commercial fields;
-* sanitized hashes;
-* acknowledgment responses;
-* validation outcomes.
-
-Raw captures and device-specific frames should not be published when they expose the underlying proprietary interface.
-
-## Security and Integrity Claims
-
-The current use of SHA-256 establishes an integrity identifier for a defined digital representation.
-
-It does not, by itself, establish:
-
-* device authentication;
-* digital signature;
-* physical-source authenticity;
-* hardware-backed attestation;
-* independent edge verification;
-* tamper-proof acquisition;
-* complete chain of custody.
-
-Any documentation describing these properties must reflect the actual implementation status of the module.
-
-## Publication Principle
-
-The governing rule for this repository is:
-
-> Publish enough engineering detail to explain, review, and evaluate the module without publishing the protected mechanics required to reproduce the proprietary device integration.
-
-Technical depth is encouraged. Credentials, private infrastructure, vendor-specific protocol mechanics, cryptographic secrets, and confidential implementation knowledge are not.
-
-```
-```
+```text
+Physical Weighing Event
+        ↓
+Measurement Instrument
+        ↓
+Host Acquisition Layer
+        ↓
+Structured Digital Event
+        ↓
+Canonical Representation
+        ↓
+SHA-256 Integrity Identifier
+        ↓
+Local Network Transport
+        ↓
+ESP32 Edge Receiver
+        ↓
+Application Acknowledgment
+        ↓
+Local Inspection Interface
