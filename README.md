@@ -1,94 +1,79 @@
 # PoWV Scale-to-Edge Integration Module
 
-This repository documents the public technical record of the PoWV Scale-to-Edge (PoWV-S2E) integration laboratory proof of concept conducted on 2026-09-18.
+The PoWV Scale-to-Edge Integration Module (PoWV-S2E) is a laboratory integration layer designed to bridge a real physical measurement source, a host-side acquisition layer, and a networked embedded edge receiver.
 
-The purpose of this repository is to describe, in a public-safe form, the implemented path from a physical weighing event to a networked ESP32-based edge receiver without exposing proprietary implementation details, operational parameters, or material that could facilitate reverse engineering.
+## Purpose and scope
 
-> This repository is a public engineering record, not a production specification, not a security certification, and not an authorization for reverse engineering.
+This module records the public-safe technical boundary of a laboratory proof of concept conducted on 2026-09-18. It documents the functional path from a physical weighing event through measurement normalization, structured event construction, integrity identification, controlled local transport, embedded receipt, and local inspection.
 
-## Scope
+The module does not publish proprietary firmware, device protocol details, operational parameters, credentials, cryptographic keys, raw instrument output, or implementation material that could facilitate reverse engineering.
 
-This module documents the validated public boundary of a laboratory integration flow in which:
+## Public functional path
 
-- a physical weighing event is acquired;
-- the measurement is normalized into a structured event;
-- a SHA-256 integrity identifier is generated;
-- the event is transported over a controlled local network;
-- the ESP32 edge receiver accepts and records the event;
-- a local inspection interface retrieves and displays the most recent event.
+```text
+Physical Event
+→ Measurement
+→ Structured Event
+→ Integrity Identifier
+→ Edge Transport
+```
 
-The current boundary is intentionally limited to functional validation and transparent disclosure. It does not claim a complete cryptographic trust chain, direct instrument attestation, or production-grade chain of custody.
-
-## Public flow
+The more detailed path is:
 
 ```text
 Physical weighing event
-→ Instrument acquisition
-→ Structured event representation
+→ Physical weighing instrument
+→ Host-side acquisition layer
+→ Structured digital event
 → SHA-256 integrity identifier
 → Controlled local network transport
 → ESP32 edge receiver
+→ Application-level acknowledgment
 → Local inspection interface
 ```
 
-## Conceptual mapping
+A host remains between the physical instrument and the ESP32. The current implementation is therefore not a direct instrument-to-edge path.
+
+## PoWV relationship
+
+The public conceptual mapping is:
 
 ```text
-E → M → P → H → Edge
+E → M → P → H → edge transport
 ```
 
-Where:
+Where E is the physical event, M is the measurement, P is the structured digital representation, and H is the SHA-256 integrity identifier.
 
-- E = physical event
-- M = measurement
-- P = structured digital representation
-- H = SHA-256 integrity identifier
+The PoC does not claim that SHA-256 is a signature, proves physical truth, establishes authenticity, or completes a trustless physical-to-digital chain.
 
-This mapping is public and operationally meaningful. It does not imply that the full PoWV trust model is complete. The current design remains a functional boundary for measurement acquisition and local edge receipt.
+## Demonstrated capabilities
 
-## Current status
+- Real physical weight measurement acquisition.
+- Extraction and normalization of event fields.
+- Structured digital event construction.
+- Timestamped event representation.
+- SHA-256 integrity identifier generation.
+- Controlled local network transport.
+- ESP32 event receipt and application-level acknowledgment.
+- Retrieval of the latest event.
+- Lightweight local dashboard inspection.
 
-Validated at laboratory PoC level:
+## Not yet demonstrated as complete
 
-- real physical weight measurement acquisition;
-- structured event construction;
-- SHA-256 integrity identifier generation;
-- local network transport;
-- event receipt by an ESP32 edge node;
-- application-level acknowledgment;
-- retrieval of the most recent event;
-- local visualization in an inspection interface.
+- Hardware-backed cryptographic attestation or signature.
+- Independent cryptographic verification at the edge.
+- Secure-element key operations.
+- Authenticated device identity.
+- Direct instrument-to-edge acquisition.
+- Durable audit anchoring.
+- Production-grade chain of custody.
+- Downstream interpretation or business decision automation.
 
-Not yet claimed as completed:
+## Maturity
 
-- hardware-backed cryptographic attestation;
-- independent edge-side verification;
-- secure-element key operations;
-- direct instrument-to-edge acquisition without a host intermediary;
-- durable audit anchoring;
-- production-grade chain of custody;
-- interpretation or business decision automation.
+**Functional laboratory PoC for physical measurement acquisition, structured event construction, integrity hashing, controlled local network transport, and embedded receipt.**
 
-## Trust boundary
-
-```text
-[Physical Domain]
-     Instrument
-          |
-          | Trust Boundary 1
-          v
-      Host acquisition layer
-          |
-          | Trust Boundary 2
-          v
-     Local network transport
-          |
-          | Trust Boundary 3
-          v
-    ESP32 edge receiver
-```
-
-The current laboratory implementation does not yet establish a hardware-rooted, end-to-end trust path from the physical instrument to the edge receiver. A host remains in the path between the instrument and the edge node.
+This is an engineering record, not a production specification, security certification, or production-readiness claim.
 
 ## Documentation
 
@@ -106,22 +91,3 @@ The current laboratory implementation does not yet establish a hardware-rooted, 
 
 - [Disclosure Boundary](docs/disclosure-boundary.md)
 - [Notice](NOTICE.md)
-
-## Public-safe framing
-
-This repository intentionally documents only what was directly validated in the laboratory environment and what can be discussed without exposing proprietary implementation details.
-
-It does not include, and it does not permit publication of:
-
-- raw instrument output;
-- operational serial parameters;
-- Wi-Fi credentials or SSID details;
-- private IPs, endpoints, or topology;
-- control bytes, framing, firmware, or parser logic;
-- Python or embedded implementation code;
-- secret keys, certificates, or secure-element configuration;
-- any detail enabling reproduction of the proprietary integration path.
-
-## Repository status
-
-Public technical record of a functional laboratory PoC for physical measurement acquisition, structured event construction, integrity hashing, local network transport, and embedded receipt.
