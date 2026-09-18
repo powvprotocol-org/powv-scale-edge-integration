@@ -553,4 +553,4 @@ The host is responsible for adapting that measurement into the current PoWV even
 The ESP32 is responsible for receiving the resulting event and exposing it at the embedded layer.
 
 The Scale-to-Edge module therefore provides the integration foundation for subsequent work on edge verification, device identity, cryptographic attestation, secure hardware, persistent evidence handling, and downstream audit infrastructure.
-```
+
