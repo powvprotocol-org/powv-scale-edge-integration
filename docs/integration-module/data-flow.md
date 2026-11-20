@@ -113,6 +113,8 @@ The current event model includes measurement data, contextual metadata, source i
 
 A representative structure is:
 
+> **Prototype representation.** The field names and example values below describe the laboratory prototype event used on 2026-09-18. They are preserved as part of the historical record. They are not the PoWV protocol's event structure, serialization or wire format, which are restricted and are not published.
+
 | Field | Example | Function |
 |---|---|---|
 | `event_type` | `weight_measurement` | Identifies the event class |
@@ -162,7 +164,7 @@ The structured event is the point at which the measurement becomes independent f
 
 Before the integrity identifier is calculated, the structured event is converted into a deterministic representation.
 
-The current implementation uses canonical JSON serialization.
+The prototype uses a deterministic JSON serialization so that equivalent events produce identical bytes. This is a property of the laboratory prototype, not a published protocol serialization profile.
 
 The canonicalization process establishes consistent:
 
