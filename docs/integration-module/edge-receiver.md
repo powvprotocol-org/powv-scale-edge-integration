@@ -55,6 +55,8 @@ The current event representation contains measurement data, contextual informati
 
 A representative event includes the following fields:
 
+> **Prototype representation.** The field names and example values below describe the laboratory prototype event used on 2026-09-18. They are preserved as part of the historical record. They are not the PoWV protocol's event structure, serialization or wire format, which are restricted and are not published.
+
 | Field                     | Example                     | Function                                       |
 | ------------------------- | --------------------------- | ---------------------------------------------- |
 | `event_type`              | `weight_measurement`        | Identifies the event class                     |
